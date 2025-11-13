@@ -1,0 +1,9 @@
+# Core dependencies
+faster-whisper>=1.0.0
+openai>=1.0.0
+
+# Configuration
+configparser>=5.0.0
+
+# Note: FFmpeg must be installed separately on your system
+# See installation instructions in README.md
