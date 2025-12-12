@@ -8,6 +8,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
+.python-version
 venv/
 env/
 ENV/
@@ -20,6 +21,7 @@ ENV/
 *.mov
 *.flv
 *.wmv
+video/
 
 # Subtitle files (generated output)
 *.srt

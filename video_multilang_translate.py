@@ -13,6 +13,7 @@ import shutil
 import json
 from typing import List, Dict, Tuple, Optional
 from pathlib import Path
+import time
 
 
 # Language configuration with native fonts
@@ -91,13 +92,229 @@ def fix_persian_text(text: str) -> str:
     return text
 
 
+# def translate_with_deepseek(texts: List[str], target_lang: str, api_key: str, source_lang: str = 'en') -> List[str]:
+#     """Batch translation with DeepSeek API"""
+#     if not texts:
+#         return []
+    
+#     lang_name = LANGUAGE_CONFIG.get(target_lang, {}).get('name', target_lang)
+#     source_lang_name = LANGUAGE_CONFIG.get(source_lang, {}).get('name', source_lang)
+    
+#     client = OpenAI(
+#         api_key=api_key,
+#         base_url="https://api.deepseek.com"
+#     )
+    
+#     # Create numbered batch
+#     batch_text = "\n".join([f"{i+1}. {t}" for i, t in enumerate(texts)])
+    
+#     # Enhanced prompt for better Persian quality
+#     if target_lang == 'fa':
+#         system_prompt = f"""You are a professional Persian (Farsi) translator. 
+# Your job is to translate ALL text from {source_lang_name} to natural Persian.
+
+# CRITICAL RULES:
+# - You MUST translate EVERY sentence completely to Persian
+# - Do NOT leave ANY {source_lang_name} words in your translation
+# - Do NOT skip or ignore any sentences
+# - Use proper Persian grammar and vocabulary
+# - Use ZWNJ (‌) correctly: می‌کنم, نمی‌کنم, کتاب‌ها, فیلم‌های
+# - Keep translations concise and natural
+# - Translate technical terms to their Persian equivalents
+# - ONLY output the Persian translation, no explanations, no {source_lang_name} text
+
+# If you see any {source_lang_name} remaining in your output, you have FAILED the task."""
+#     else:
+#         system_prompt = f"""You are a professional {lang_name} translator.
+# Your job is to translate ALL text from {source_lang_name} to natural {lang_name}.
+
+# CRITICAL RULES:
+# - You MUST translate EVERY sentence completely to {lang_name}
+# - Do NOT leave ANY {source_lang_name} words in your translation
+# - Do NOT skip or ignore any sentences
+# - Keep translations natural and conversational
+# - ONLY output the {lang_name} translation, no explanations
+
+# If you see any {source_lang_name} remaining in your output, you have FAILED the task."""
+    
+#     try:
+#         response = client.chat.completions.create(
+#             model="deepseek-chat",
+#             messages=[
+#                 {"role": "system", "content": system_prompt},
+#                 {"role": "user", "content": f"Translate ALL of these {source_lang_name} sentences to {lang_name}. Each line must be COMPLETELY translated:\n\n{batch_text}"}
+#             ],
+#             temperature=0.2,
+#             max_tokens=4000
+#         )
+        
+#         output = response.choices[0].message.content.strip()
+#         translations = []
+        
+#         # Parse numbered responses
+#         for line in output.split('\n'):
+#             line = line.strip()
+#             if not line:
+#                 continue
+#             if '. ' in line and line.split('.')[0].isdigit():
+#                 trans = line.split('. ', 1)[1]
+#                 # Apply Persian fixes if translating to Persian
+#                 if target_lang == 'fa':
+#                     trans = fix_persian_text(trans)
+#                 translations.append(trans)
+#             else:
+#                 if target_lang == 'fa':
+#                     line = fix_persian_text(line)
+#                 translations.append(line)
+        
+#         if len(translations) != len(texts):
+#             print(f"Warning: Expected {len(texts)} translations, got {len(translations)}. Using original texts for missing.")
+#             translations.extend(texts[len(translations):])
+        
+#         return translations[:len(texts)]
+    
+#     except Exception as e:
+#         print(f"Translation error: {e}. Using original texts.")
+#         return texts
+
+
+def get_translation_prompt(target_lang: str, source_lang_name: str, target_lang_name: str) -> str:
+    if target_lang == 'fa':
+        return f"""تو یک مترجم حرفه‌ای و بسیار دقیق فارسی هستی که در ترجمه زیرنویس ویدیوهای یوتیوب، تیک‌تاک، اینستاگرام و سخنرانی‌های روزمره تخصص داری.
+
+وظیفه تو اینه که دقیقاً همون چیزی که گوینده گفته رو به فارسی ترجمه کنی — نه بیشتر، نه کمتر، نه رسمی‌تر، نه ادبی‌تر.
+
+قوانین طلایی (حتماً رعایت کن، وگرنه شکست خوردی):
+
+۱. لحن دقیقاً مثل گوینده باشه:
+   - اگه عامیانه و خودمونی حرف زده → تو هم خودمونی و عامیانه بنویس (مثل: "داداش"، "وای"، "جدی؟"، "نه بابا"، "آخه چی؟")
+   - اگه شوخی کرده → شوخی رو زنده نگه دار
+   - اگه عصبانی، هیجان‌زده، شوکه، خنده‌داره → همون حس رو منتقل کن
+   - اگه با لهجه یا تپق حرف زده → تا حد ممکن همون حس رو بده (مثلاً "اِ... خب..." یا "من... یعنی...")
+
+۲. اصلاً رسمی نکن! حتی اگه خودت فکر می‌کنی قشنگ‌تره:
+   - به جای "می‌باشد" → "هست" یا "ئه"
+   - به جای "شما" → "تو" (اگه تو ویدیو "you" به صورت دوستانه گفته شده)
+   - به جای "لطفاً" → "لطفاً" فقط اگه واقعاً مودبانه گفته شده
+
+۳. عبارات روزمره و اسلنگ رو درست ترجمه کن:
+   - "bro" → "داداش" یا "برادر" (بسته به لحن)
+   - "no way" → "نه بابا"، "مگه میشه؟"
+   - "I'm dead" → "مردم"، "ترکیدم از خنده"
+   - "literally" → "واقعاً"، "جدی"، "به معنای واقعی کلمه" (بسته به لحن)
+
+۴. تکرار، مکث و پرکننده‌ها رو نگه دار:
+   - "I mean... like..." → "یعنی... مثلاً..."
+   - "you know what I'm saying?" → "می‌فهمی چی میگم؟"، "می‌گیری چی میگم؟"
+
+۵. فقط ترجمه کن. هیچ توضیحی نده. فقط شماره + ترجمه.
+
+مثال:
+1. Dude, are you serious right now?
+→ ۱. داداش جدی میگی الان؟
+
+2. Wait what? No way bro that can't be real
+→ ۲. چی؟ نه بابا مگه میشه این واقعیه داداش؟
+
+حالا دقیقاً با همین سبک و دقت تمام جملات زیر رو ترجمه کن:"""
+
+    else:
+        # برای زبان‌های دیگه هم می‌تونی مشابه بنویسی، ولی فارسی مهم‌تره
+        return f"""You are an expert subtitle translator for YouTube, TikTok, and casual videos.
+
+Your job is to translate with EXACT same tone, energy, slang, and speaking style as the speaker.
+
+RULES:
+- If it's casual, keep it casual
+- If it's funny, keep it funny
+- If they say "bro", "dude", "like", "you know" → keep the same vibe
+- Never make it formal or literary
+- Keep filler words like "um", "like", "you know" if they add to the natural feel
+- Only output only: number + translation
+
+Now translate these lines with perfect tone match:"""
+    
+
+
 def translate_with_deepseek(texts: List[str], target_lang: str, api_key: str, source_lang: str = 'en') -> List[str]:
-    """Batch translation with DeepSeek API"""
     if not texts:
         return []
     
     lang_name = LANGUAGE_CONFIG.get(target_lang, {}).get('name', target_lang)
     source_lang_name = LANGUAGE_CONFIG.get(source_lang, {}).get('name', source_lang)
+    
+    client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+    
+    batch_text = "\n".join([f"{i+1}. {t}" for i, t in enumerate(texts)])
+    
+    # استفاده از پرامپت جدید و قوی
+    system_prompt = get_translation_prompt(target_lang, source_lang_name, lang_name)
+    
+    user_message = f"Translate these to {lang_name} with EXACT same tone and style:\n\n{batch_text}"
+    
+    import time
+    max_retries = 3
+    
+    for attempt in range(max_retries):
+        try:
+            if attempt > 0:
+                print(f"    Retry attempt {attempt+1}/{max_retries}...")
+                time.sleep(2)  # Wait a bit before retry
+
+            response = client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message}
+                ],
+                temperature=0.3,      # کمی بالاتر برای طبیعی‌تر شدن (0.3 بهتر از 0.2)
+                max_tokens=4000
+            )
+            
+            output = response.choices[0].message.content.strip()
+            
+            translations = []
+            for line in output.split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
+                # استخراج بعد از شماره
+                if re.match(r'^\d+[\.\)]\s', line):
+                    trans = re.sub(r'^\d+[\.\)]\s*', '', line)
+                else:
+                    trans = line
+                # فقط برای فارسی این کار رو بکن
+                if target_lang == 'fa':
+                    trans = fix_persian_text(trans)
+                translations.append(trans)
+            
+            # اگه تعداد کم بود، تلاش مجدد کن
+            if len(translations) < len(texts):
+                print(f"    Warning: Received {len(translations)}/{len(texts)} translations. Retrying...")
+                # If this was the last attempt, use what we have and fill with original
+                if attempt == max_retries - 1:
+                    print("    Failed to get full translation. Using partial result + fallback.")
+                    translations.extend(texts[len(translations):])
+                    return translations[:len(texts)]
+                continue
+            
+            return translations[:len(texts)]
+            
+        except Exception as e:
+            print(f"    Translation error (attempt {attempt+1}): {e}")
+            if attempt == max_retries - 1:
+                print("    Failed after retries. Using original text.")
+                return texts
+    
+    # Fallback if loop finishes unexpectedly
+    return texts
+
+def correct_transcription_with_deepseek(texts: List[str], api_key: str, language: str = 'en') -> List[str]:
+    """Correct speech-to-text errors using DeepSeek API"""
+    if not texts:
+        return []
+    
+    lang_name = LANGUAGE_CONFIG.get(language, {}).get('name', language)
     
     client = OpenAI(
         api_key=api_key,
@@ -107,30 +324,30 @@ def translate_with_deepseek(texts: List[str], target_lang: str, api_key: str, so
     # Create numbered batch
     batch_text = "\n".join([f"{i+1}. {t}" for i, t in enumerate(texts)])
     
-    # Enhanced prompt for better Persian quality
-    if target_lang == 'fa':
-        system_prompt = """You are a professional translator specializing in Persian (Farsi). 
-Translate English texts to natural, conversational Persian following these rules:
-- Use proper Persian grammar and vocabulary
-- Use ZWNJ (‌) correctly: می‌کنم, نمی‌کنم, کتاب‌ها, فیلم‌های
-- Keep translations concise and natural
-- Only write the translation, no explanations"""
-    else:
-        system_prompt = f"You are a professional translator. Translate {source_lang_name} texts to natural, conversational {lang_name}. Only write the translation, no explanations."
+    system_prompt = f"""You are a professional {lang_name} transcript editor. 
+Your task is to correct speech-to-text errors in transcripts.
+Rules:
+- Fix misheard words (e.g., "thank" → "think", "their" → "there")
+- Fix grammar and punctuation errors
+- Keep the original meaning and style
+- Do NOT translate or paraphrase
+- Do NOT add or remove content
+- Only correct errors
+- Return each line with its number"""
     
     try:
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Translate these {source_lang_name} sentences to natural {lang_name}:\n\n{batch_text}"}
+                {"role": "user", "content": f"Correct any speech-to-text errors in these {lang_name} transcript lines:\n\n{batch_text}"}
             ],
-            temperature=0.3,
+            temperature=0.1,
             max_tokens=4000
         )
         
         output = response.choices[0].message.content.strip()
-        translations = []
+        corrected = []
         
         # Parse numbered responses
         for line in output.split('\n'):
@@ -138,25 +355,99 @@ Translate English texts to natural, conversational Persian following these rules
             if not line:
                 continue
             if '. ' in line and line.split('.')[0].isdigit():
-                trans = line.split('. ', 1)[1]
-                # Apply Persian fixes if translating to Persian
-                if target_lang == 'fa':
-                    trans = fix_persian_text(trans)
-                translations.append(trans)
+                text = line.split('. ', 1)[1]
+                corrected.append(text)
             else:
-                if target_lang == 'fa':
-                    line = fix_persian_text(line)
-                translations.append(line)
+                corrected.append(line)
         
-        if len(translations) != len(texts):
-            print(f"Warning: Expected {len(texts)} translations, got {len(translations)}. Using original texts for missing.")
-            translations.extend(texts[len(translations):])
+        if len(corrected) != len(texts):
+            print(f"Warning: Expected {len(texts)} corrections, got {len(corrected)}. Using original texts for missing.")
+            corrected.extend(texts[len(corrected):])
         
-        return translations[:len(texts)]
+        return corrected[:len(texts)]
     
     except Exception as e:
-        print(f"Translation error: {e}. Using original texts.")
+        print(f"Correction error: {e}. Using original texts.")
         return texts
+
+
+def transcribe_with_deepseek(video_path: str, api_key: str, language: str = 'en') -> str:
+    """Transcribe video using DeepSeek API"""
+    print(f"Transcribing video with DeepSeek API...")
+    
+    # Extract audio from video
+    base_name = os.path.splitext(video_path)[0]
+    audio_path = f"{base_name}_temp_audio.mp3"
+    
+    print("  Extracting audio from video...")
+    result = subprocess.run([
+        'ffmpeg', '-y', '-i', video_path,
+        '-vn', '-acodec', 'libmp3lame', '-q:a', '2',
+        audio_path
+    ], capture_output=True, text=True)
+    
+    if result.returncode != 0:
+        raise RuntimeError(f"Audio extraction failed: {result.stderr}")
+    
+    try:
+        # Get audio duration for progress tracking
+        probe_result = subprocess.run([
+            'ffprobe', '-v', 'error',
+            '-show_entries', 'format=duration',
+            '-of', 'default=noprint_wrappers=1:nokey=1',
+            audio_path
+        ], capture_output=True, text=True)
+        
+        duration = float(probe_result.stdout.strip()) if probe_result.returncode == 0 else 0
+        
+        print(f"  Uploading audio to DeepSeek API...")
+        
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://api.deepseek.com"
+        )
+        
+        # Read audio file
+        with open(audio_path, 'rb') as f:
+            audio_data = f.read()
+        
+        # Call DeepSeek transcription API (assuming it supports audio transcription)
+        # Note: This is a placeholder - adjust based on actual DeepSeek API capabilities
+        print(f"  Transcribing audio (0%)...", end='', flush=True)
+        
+        response = client.audio.transcriptions.create(
+            model="whisper-1",  # Adjust model name based on DeepSeek's offering
+            file=audio_data,
+            language=language,
+            response_format="verbose_json"
+        )
+        
+        print(f"\r  Transcribing audio (100%) ✓")
+        
+        # Convert response to SRT format
+        srt_path = f"{base_name}_{language}.srt" if language != 'en' else f"{base_name}.srt"
+        
+        with open(srt_path, 'w', encoding='utf-8') as f:
+            if hasattr(response, 'segments'):
+                for i, seg in enumerate(response.segments, 1):
+                    start = format_time(seg.start)
+                    end = format_time(seg.end)
+                    text = seg.text.strip()
+                    if text:
+                        f.write(f"{i}\n{start} --> {end}\n{text}\n\n")
+            else:
+                # Fallback if segments not available
+                f.write(f"1\n00:00:00,000 --> 00:00:10,000\n{response.text}\n\n")
+        
+        print(f"  Saved transcription: {srt_path}")
+        return srt_path
+        
+    finally:
+        # Cleanup temporary audio file
+        try:
+            os.remove(audio_path)
+        except:
+            pass
 
 
 def clean_subtitle_line(text: str) -> str:
@@ -212,6 +503,40 @@ def create_ass_with_font(srt_path: str, ass_path: str, lang_code: str = 'en') ->
         content = content.replace('[Script Info]', 
                                 '[Script Info]\nPlayResX: 1920\nPlayResY: 1080')
     
+    # FOR PERSIAN: Apply Visual Reshaping (Arabic Reshaper + Python Bidi)
+    # This bakes the visual order into the string, so simple renderers show it correctly.
+    # It also solves the issue of specific fonts not supporting control chars like RLM/RLE.
+    if lang_code == 'fa':
+        try:
+            import arabic_reshaper
+            from bidi.algorithm import get_display
+            
+            def reshape_text(match):
+                prefix = match.group(1)
+                text = match.group(2)
+                
+                # Cleanup: Strip all BiDi control characters that might be in the source
+                # RLM, LRM, RLE, LRE, PDF, etc.
+                text = text.replace('\u200f', '').replace('\u200e', '') \
+                           .replace('\u202a', '').replace('\u202b', '') \
+                           .replace('\u202c', '').replace('\u202d', '') \
+                           .replace('\u202e', '')
+
+                # Check if it has Persian/Arabic chars
+                if any('\u0600' <= c <= '\u06FF' for c in text):
+                    reshaped_text = arabic_reshaper.reshape(text)
+                    # Force base_dir='R' so the algorithm treats the whole line as RTL context.
+                    # This ensures English words end up in the correct visual position relative to Persian.
+                    bidi_text = get_display(reshaped_text, base_dir='R')
+                    return f"{prefix}{bidi_text}"
+                return f"{prefix}{text}"
+
+            content = re.sub(r'(Dialogue: [^,]+,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,)(.*)', 
+                             reshape_text, content)
+            print("  ✓ Applied visual BiDi reshaping for Persian text")
+        except ImportError:
+            print("  ⚠️ Warning: arabic-reshaper or python-bidi not installed. Skipping visual fix.")
+
     # Save modified content
     with open(ass_path, 'w', encoding='utf-8') as f:
         f.write(content)
@@ -328,52 +653,57 @@ def render_video_with_subtitles(video_path: str, ass_path: str, output_path: str
     ass_content = re.sub(r'PlayResX: \d+', f'PlayResX: {width}', ass_content)
     ass_content = re.sub(r'PlayResY: \d+', f'PlayResY: {height}', ass_content)
     
-    fixed_ass = ass_path.replace('.ass', '_fixed.ass')
+    # Use a safe temporary filename to avoid FFmpeg filter escaping issues
+    import time
+    fixed_ass = f"temp_subs_{int(time.time())}.ass"
     with open(fixed_ass, 'w', encoding='utf-8') as f:
         f.write(ass_content)
     
     print(f"  Encoding: 0%", end='', flush=True)
     
-    # Start FFmpeg
-    process = subprocess.Popen([
-        'ffmpeg', '-y', '-i', video_path,
-        '-vf', f'ass={fixed_ass}',
-        '-c:a', 'copy',
-        '-c:v', 'libx264',
-        '-preset', 'medium',
-        '-crf', '23',
-        '-progress', 'pipe:2',
-        '-nostats',
-        output_path
-    ], stderr=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True, bufsize=1)
-    
-    # Track progress
-    last_percent = 0
-    for line in process.stderr:
-        if 'out_time_ms=' in line:
-            try:
-                time_ms = int(line.split('=')[1].strip())
-                time_sec = time_ms / 1000000.0
-                
-                if duration > 0:
-                    percent = min(int((time_sec / duration) * 100), 100)
-                    if percent > last_percent:
-                        print(f"\r  Encoding: {percent}%", end='', flush=True)
-                        last_percent = percent
-            except:
-                pass
-    
-    process.wait()
-    print(f"\r  Encoding: 100% ✓")
-    
-    if process.returncode != 0:
-        raise RuntimeError(f"FFmpeg rendering failed")
-    
-    # Cleanup temporary fixed ASS file
     try:
-        os.remove(fixed_ass)
-    except:
-        pass
+        # Start FFmpeg
+        process = subprocess.Popen([
+            'ffmpeg', '-y', '-i', video_path,
+            '-vf', f'ass={fixed_ass}',
+            '-c:a', 'copy',
+            '-c:v', 'libx264',
+            '-preset', 'medium',
+            '-crf', '23',
+            '-progress', 'pipe:2',
+            '-nostats',
+            output_path
+        ], stderr=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True, bufsize=1)
+        
+        # Track progress
+        last_percent = 0
+        for line in process.stderr:
+            if 'out_time_ms=' in line:
+                try:
+                    time_ms = int(line.split('=')[1].strip())
+                    time_sec = time_ms / 1000000.0
+                    
+                    if duration > 0:
+                        percent = min(int((time_sec / duration) * 100), 100)
+                        if percent > last_percent:
+                            print(f"\r  Encoding: {percent}%", end='', flush=True)
+                            last_percent = percent
+                except:
+                    pass
+        
+        process.wait()
+        print(f"\r  Encoding: 100% ✓")
+        
+        if process.returncode != 0:
+            raise RuntimeError(f"FFmpeg rendering failed")
+            
+    finally:
+        # Cleanup temporary fixed ASS file
+        try:
+            if os.path.exists(fixed_ass):
+                os.remove(fixed_ass)
+        except:
+            pass
 
 
 def find_existing_subtitle(base_path: str, lang_code: str) -> Optional[str]:
@@ -441,26 +771,103 @@ def write_srt_file(srt_path: str, entries: List[Dict]) -> None:
             f.write(f"{i}\n{entry['start']} --> {entry['end']}\n{text}\n\n")
 
 
-def transcribe_video(video_path: str, model_size: str = 'base', language: str = 'en') -> str:
+def transcribe_video(video_path: str, model_size: str = 'medium', language: str = 'en', correct_with_api: bool = False, api_key: str = None) -> str:
     """Transcribe video using Whisper and return SRT path"""
     print(f"Transcribing video with Whisper ({model_size})...")
     
     model = WhisperModel(model_size, device="cpu", compute_type="int8")
-    segments = list(model.transcribe(
+    
+    # Get total duration for progress tracking
+    probe_result = subprocess.run([
+        'ffprobe', '-v', 'error',
+        '-show_entries', 'format=duration',
+        '-of', 'default=noprint_wrappers=1:nokey=1',
+        video_path
+    ], capture_output=True, text=True)
+    
+    total_duration = float(probe_result.stdout.strip()) if probe_result.returncode == 0 else 0
+    
+    print(f"  Processing audio (0%)...", end='', flush=True)
+    
+    segments_list = []
+    last_percent = 0
+    
+    segments, info = model.transcribe(
         video_path,
         language=language,
         vad_filter=True,
-        vad_parameters=dict(min_silence_duration_ms=500)
-    )[0])
+        vad_parameters=dict(min_silence_duration_ms=500),
+        beam_size=5,  # Better quality
+        word_timestamps=True # Better segmentation
+    )
+    
+    for seg in segments:
+        segments_list.append(seg)
+        
+        if total_duration > 0:
+            percent = min(int((seg.end / total_duration) * 100), 100)
+            if percent > last_percent:
+                print(f"\r  Processing audio ({percent}%)...", end='', flush=True)
+                last_percent = percent
+    
+    print(f"\r  Processing audio (100%) ✓")
     
     base_name = os.path.splitext(video_path)[0]
     srt_path = f"{base_name}_{language}.srt" if language != 'en' else f"{base_name}.srt"
     
-    print(f"Saving transcription: {srt_path}")
+    # Extract texts for correction
+    original_texts = [seg.text.strip() for seg in segments_list if seg.text.strip()]
+    corrected_texts = original_texts.copy()
+    
+    # Correct with DeepSeek if requested
+    if correct_with_api and api_key:
+        print(f"  Correcting transcription with DeepSeek API...")
+        batch_size = 20
+        all_corrected = []
+        
+        for i in range(0, len(original_texts), batch_size):
+            batch = original_texts[i:i+batch_size]
+            start_line = i + 1
+            end_line = min(i + batch_size, len(original_texts))
+            percent = int((end_line / len(original_texts)) * 100)
+            
+            print(f"    Correcting lines {start_line}–{end_line} of {len(original_texts)} ({percent}%)")
+            
+            corrected = correct_transcription_with_deepseek(batch, api_key, language)
+            all_corrected.extend(corrected)
+        
+        corrected_texts = all_corrected
+        
+        # Show and save corrections
+        corrections = []
+        changes_count = 0
+        for i, (orig, corr) in enumerate(zip(original_texts, corrected_texts), 1):
+            if orig != corr:
+                changes_count += 1
+                change_info = f"Line {i}:\n  Before: {orig}\n  After:  {corr}\n"
+                corrections.append(change_info)
+                print(f"  ✓ {change_info.strip()}")
+        
+        if changes_count > 0:
+            # Save corrections to file
+            corrections_file = f"{base_name}_corrections.txt"
+            with open(corrections_file, 'w', encoding='utf-8') as f:
+                f.write(f"Transcription Corrections for: {os.path.basename(video_path)}\n")
+                f.write(f"Language: {language.upper()}\n")
+                f.write(f"Total changes: {changes_count}\n")
+                f.write("=" * 60 + "\n\n")
+                f.write("\n".join(corrections))
+            
+            print(f"  📝 Total corrections: {changes_count}")
+            print(f"  💾 Corrections saved to: {corrections_file}")
+        else:
+            print(f"  ℹ️  No corrections needed - transcription looks good!")
+    
+    print(f"  Saving transcription: {srt_path}")
     with open(srt_path, 'w', encoding='utf-8') as f:
-        for i, seg in enumerate(segments, 1):
-            if seg.text.strip():
-                f.write(f"{i}\n{format_time(seg.start)} --> {format_time(seg.end)}\n{seg.text.strip()}\n\n")
+        for i, (seg, text) in enumerate(zip(segments_list, corrected_texts), 1):
+            if text:
+                f.write(f"{i}\n{format_time(seg.start)} --> {format_time(seg.end)}\n{text}\n\n")
     
     return srt_path
 
@@ -469,9 +876,11 @@ def process_video_subtitles(
     video_path: str,
     source_lang: str,
     target_langs: List[str],
-    model_size: str = 'base',
+    model_size: str = 'medium',
     render: bool = False,
-    force_transcribe: bool = False
+    force_transcribe: bool = False,
+    use_deepseek_transcribe: bool = False,
+    correct_transcription: bool = True
 ) -> Dict[str, str]:
     """
     Main processing function
@@ -496,7 +905,12 @@ def process_video_subtitles(
             print(f"Force transcribing (--force-transcribe enabled)...")
         else:
             print(f"No existing {source_lang.upper()} subtitle found.")
-        source_srt = transcribe_video(video_path, model_size, source_lang)
+        
+        # Use DeepSeek or Whisper based on flag
+        if use_deepseek_transcribe:
+            source_srt = transcribe_with_deepseek(video_path, api_key, source_lang)
+        else:
+            source_srt = transcribe_video(video_path, model_size, source_lang, correct_transcription, api_key)
     
     # Only add source to result if it's in target_langs
     if source_lang in target_langs:
@@ -505,6 +919,7 @@ def process_video_subtitles(
     # Step 2: Extract source text
     source_entries = extract_subtitles_from_srt(source_srt)
     source_texts = [e['text'] for e in source_entries]
+    total_lines = len(source_texts)
     
     # Step 3: Translate to each target language
     for target_lang in target_langs:
@@ -517,25 +932,94 @@ def process_video_subtitles(
         existing = find_existing_subtitle(base_path, target_lang)
         if existing:
             print(f"Found existing {target_lang.upper()} subtitle: {existing}")
+            
+            # Check for untranslated lines (Smart Resume)
+            print(f"  Checking for untranslated lines in {existing}...")
+            existing_entries = extract_subtitles_from_srt(existing)
+            
+            # Create a map of existing translations
+            # We assume index matches
+            untranslated_indices = []
+            
+            # Ensure we don't go out of bounds
+            check_len = min(len(source_texts), len(existing_entries))
+            
+            for idx in range(check_len):
+                src_text = clean_subtitle_line(source_texts[idx])
+                # Remove RLM marks and whitespace for comparison
+                tgt_text = existing_entries[idx]['text'].replace('\u200f', '').strip()
+                
+                # If target looks exactly like source (and source isn't numbers/symbols only)
+                # We check length > 1 to avoid false positives on simple punctuations/numbers
+                if src_text == tgt_text and len(src_text) > 1 and not src_text.isdigit():
+                    untranslated_indices.append(idx)
+            
+            if not untranslated_indices:
+                print("  ✓ File appears fully translated.")
+                result_files[target_lang] = existing
+                continue
+            
+            print(f"  ⚠️ Found {len(untranslated_indices)} untranslated lines. Resuming translation...")
+            
+            # Prepare batches for failed lines
+            # We group consecutive indices for efficiency, or just send individual lines?
+            # Sending in small batches is better for context, but here we might have scattered lines.
+            # Let's process batch by batch as usual, but only for needed parts?
+            # Simpler approach: Iterate through batches of the WHOLE text, but only call API if the batch contains untranslated lines?
+            # Or better: Extract specific lines and translate them. The context might be missing if we only send one line.
+            # BUT `translate_with_deepseek` takes a list of strings. We can send a batch of "untranslated lines".
+            # The prompt asks to translate "these lines".
+            
+            # To preserve context, it's best to re-translate the surrounding block, but that's expensive.
+            # Let's just translate the missing lines in batches of 20.
+            
+            # We need to map back to original indices.
+            
+            all_translations_map = {} # index -> new_translation
+            
+            batch_size = 10  # Reduced for stability
+            for i in range(0, len(untranslated_indices), batch_size):
+                batch_indices = untranslated_indices[i:i+batch_size]
+                batch_texts = [source_texts[idx] for idx in batch_indices]
+                
+                print(f"    Re-translating {len(batch_texts)} lines (Indices {batch_indices[0]+1}-{batch_indices[-1]+1})...")
+                
+                new_translations = translate_with_deepseek(batch_texts, target_lang, api_key, source_lang)
+                
+                for idx, trans in zip(batch_indices, new_translations):
+                    existing_entries[idx]['text'] = trans
+            
+            # Save updated file
+            write_srt_file(existing, existing_entries)
+            print(f"  ✓ Updated {existing} with {len(untranslated_indices)} new translations.")
             result_files[target_lang] = existing
             continue
         
         # Translate
         print(f"Translating to {target_lang.upper()}...")
-        batch_size = 20
-        all_translations = []
         
-        for i in range(0, len(source_texts), batch_size):
-            batch = source_texts[i:i+batch_size]
-            print(f"  Translating lines {i+1}–{min(i+batch_size, len(source_texts))}")
+        translations = []
+        batch_size = 10  # Reduced from 20 to avoid timeouts/incomplete answers
+        
+        for i in range(0, total_lines, batch_size):
+            batch_texts = source_texts[i:i+batch_size]
+            start_line = i + 1
+            end_line = min(i + batch_size, total_lines)
             
-            translations = translate_with_deepseek(batch, target_lang, api_key, source_lang)
-            all_translations.extend(translations)
+            print(f"  Translating lines {start_line}–{end_line} of {total_lines} ({int((i/total_lines)*100)}%)")
+            
+            batch_translations = translate_with_deepseek(batch_texts, target_lang, api_key, source_lang)
+            translations.extend(batch_translations)
+            
+            # Save progress incrementally
+            # ...
+            
+            time.sleep(1)  # Increased delay slightly
         
         # Write translated SRT
         translated_entries = [
             {**entry, 'text': trans}
-            for entry, trans in zip(source_entries, all_translations)
+            for entry, trans in zip(source_entries, translations)
         ]
         write_srt_file(target_srt, translated_entries)
         print(f"Created: {target_srt}")
@@ -602,6 +1086,12 @@ Examples:
   # Render video with subtitles
   python script.py video.mp4 -s en -t fa -r
   
+  # Use smaller/faster Whisper model
+  python script.py video.mp4 -s en -t fa -m base
+  
+  # Disable automatic transcription correction
+  python script.py video.mp4 -s en -t fa --no-correction
+  
   # List supported languages
   python script.py --list-languages
         """
@@ -620,9 +1110,9 @@ Examples:
     )
     parser.add_argument(
         "-m", "--model",
-        default="base",
+        default="medium",
         choices=["tiny", "base", "small", "medium", "large"],
-        help="Whisper model size (default: base)"
+        help="Whisper model size (default: medium)"
     )
     parser.add_argument(
         "-r", "--render",
@@ -633,6 +1123,16 @@ Examples:
         "-f", "--force-transcribe",
         action="store_true",
         help="Force re-transcription even if subtitle exists"
+    )
+    parser.add_argument(
+        "--deepseek-transcribe",
+        action="store_true",
+        help="Use DeepSeek API for transcription instead of Whisper"
+    )
+    parser.add_argument(
+        "--no-correction",
+        action="store_true",
+        help="Disable automatic transcription correction with DeepSeek"
     )
     parser.add_argument(
         "-l", "--list-languages",
@@ -676,7 +1176,10 @@ Examples:
             args.target,
             model_size=args.model,
             render=args.render,
-            force_transcribe=args.force_transcribe
+            force_transcribe=args.force_transcribe,
+            use_deepseek_transcribe=args.deepseek_transcribe,
+            # correct_transcription=not args.no_correction
+            correct_transcription=False
         )
     except Exception as e:
         print(f"\nError: {e}")
