@@ -73,9 +73,9 @@ chmod +x install.sh
 
 This will check for Python, create a virtual environment, install requirements, and prompt for your API key:
 
-| Key | Description | Get it here |
+| Key | Purpose (Why do I need this?) | Get it here |
 | :--- | :--- | :--- |
-| **`DEEPSEEK_API_KEY`** | Required for high-accuracy standard translations. | [DeepSeek Platform](https://platform.deepseek.com) |
+| **`DEEPSEEK_API_KEY`** | Allows the script to translate subtitles into other languages (e.g., Persian) with professional accuracy. | [DeepSeek Platform](https://platform.deepseek.com) |
 
 ### 4. Basic Usage
 
