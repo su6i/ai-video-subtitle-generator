@@ -1,9 +1,20 @@
-# 🎬 Multi-Language Video Subtitle Generator
+<div align="center">
+  <img src="assets/project_logo.svg" width="350" alt="Subtitle Generator Logo">
+  <h1>🎬 Multi-Language Video Subtitle Generator</h1>
+
+  ![Version](https://img.shields.io/badge/Version-1.0.0-blue.svg)
+  ![Python](https://img.shields.io/badge/Python-3.8+-yellow.svg)
+  ![License](https://img.shields.io/badge/License-MIT-green.svg)
+  <a href="https://www.linkedin.com/in/su6i/">
+    <img src="assets/linkedin_su6i.svg" height="20" alt="LinkedIn">
+  </a>
+</div>
+
 
 Automatically transcribe videos and translate subtitles into multiple languages using Whisper AI and DeepSeek API. Generate SRT/ASS files and render videos with embedded multilingual subtitles with real-time progress tracking.
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 
 ## ✨ Features
 
