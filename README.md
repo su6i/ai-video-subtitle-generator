@@ -66,12 +66,17 @@ cd video-subtitle-generator
 2. Create `.config` file with your DeepSeek API key:
 ```ini
 [DEFAULT]
-DEEPSEEK_API = your_api_key_here
+### 3. Configuration
+
+Create a `.env` file (or set environment variables) for the API key:
+
+```ini
+DEEPSEEK_API_KEY=your_api_key_here
 ```
 
 Get your free API key at: [https://platform.deepseek.com](https://platform.deepseek.com)
 
-### Basic Usage
+### 4. Basic Usage
 
 ```bash
 # Transcribe English video and translate to Persian
