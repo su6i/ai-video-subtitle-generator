@@ -63,23 +63,15 @@ git clone https://github.com/su6i/ai-video-subtitle-generator.git
 cd video-subtitle-generator
 ```
 
-2. Create `.config` file with your DeepSeek API key:
-```ini
-[DEFAULT]
-### 3. Configuration
-
-Run the automated setup script to add your API key:
+### 3. Installation & Setup
+Run the automated installer to set up dependencies and configuration:
 
 ```bash
-python3 setup_env.py
+chmod +x install.sh
+./install.sh
 ```
 
-Or manually create a `.env` file:
-```ini
-DEEPSEEK_API_KEY=your_key_here
-```
-
-Get your free API key at: [https://platform.deepseek.com](https://platform.deepseek.com)
+This will check for Python, create a virtual environment, install requirements, and prompt for your DeepSeek API key.
 
 ### 4. Basic Usage
 
