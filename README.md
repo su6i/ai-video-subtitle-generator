@@ -68,10 +68,15 @@ cd video-subtitle-generator
 [DEFAULT]
 ### 3. Configuration
 
-Create a `.env` file (or set environment variables) for the API key:
+Run the automated setup script to add your API key:
 
+```bash
+python3 setup_env.py
+```
+
+Or manually create a `.env` file:
 ```ini
-DEEPSEEK_API_KEY=your_api_key_here
+DEEPSEEK_API_KEY=your_key_here
 ```
 
 Get your free API key at: [https://platform.deepseek.com](https://platform.deepseek.com)
