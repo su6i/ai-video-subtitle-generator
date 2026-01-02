@@ -53,3 +53,12 @@ desktop.ini
 test*.py
 temp/
 tmp/
+*.ass
+*.srt
+*.mp4
+*.mkv
+*.avi
+output/
+temp/
+__pycache__/
+venv/
