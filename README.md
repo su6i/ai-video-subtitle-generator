@@ -331,6 +331,9 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 2. Test with sample video
 3. Submit PR with language code documentation
 
+## 🤝 Contributing
+Contributions are welcome! Please check the issues page or submit a Pull Request.
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
