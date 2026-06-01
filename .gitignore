@@ -62,3 +62,5 @@ output/
 temp/
 __pycache__/
 venv/
+.storage/
+.env
