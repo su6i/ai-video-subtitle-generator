@@ -484,11 +484,20 @@ def create_ass_with_font(srt_path: str, ass_path: str, lang_code: str = 'en') ->
         content = f.read()
     
     # Replace ALL font settings (both in Style line and any Fontsize parameters)
-    # Replace the main Style line
+    # Replace the main Style line with our custom style (Opaque Box)
+    # Style: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic...
+    # We enforce BorderStyle=3 (Opaque Box) and OutlineColour=&H80000000 (Semi-transparent black)
+    # Replace the main Style line with our custom style (Opaque Box)
+    # Style: Default,... -> Style: Default,...
+    # We use re.MULTILINE to match ^Style:...
+    custom_style = f"Style: Default,{font_name},{font_size},&H00FFFFFF,&H000000FF,&H80000000,&H80000000,-1,0,0,0,100,100,0,0,3,0,1,2,10,10,10,1"
+    
+    # Try multiple patterns to catch how FFmpeg output formatting
     content = re.sub(
-        r'Style: Default,[^,]*,\d+',
-        f'Style: Default,{font_name},{font_size}',
-        content
+        r'^Style:\s*Default,.*$',
+        custom_style,
+        content,
+        flags=re.MULTILINE
     )
     
     # Also replace any inline font size overrides
@@ -497,6 +506,11 @@ def create_ass_with_font(srt_path: str, ass_path: str, lang_code: str = 'en') ->
         f'\\\\fs{font_size}',
         content
     )
+
+    # Ensure Script Info has necessary scaling settings
+    if 'ScaledBorderAndShadow: yes' not in content:
+        content = content.replace('[Script Info]', 
+                                '[Script Info]\nScaledBorderAndShadow: yes')
     
     # Make sure PlayResY is set for proper scaling
     if 'PlayResX' not in content:
@@ -597,7 +611,16 @@ def create_combined_ass(subtitle_files: List[Tuple[str, str]], output_ass: str) 
             # Position: first at bottom, others stacked above
             margin_v = 20 if i == 0 else 80 + (i - 1) * 60
             
-            style_line = f"Style: {lang_code.upper()},{font_name},{font_size},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2.5,1,2,10,10,{margin_v},1\n"
+            # Use Opaque Box (BorderStyle=3) with semi-transparent black background
+            # OutlineColour defines the box color in BorderStyle=3
+            # &H60000000 is approx 40% opaque (Hex 60 alpha) -> actually Alpha is first byte in ASS?
+            # ASS color format: &HAABBGGRR
+            # Alpha: 00 (opaque) to FF (transparent).
+            # We want semi-transparent black box.
+            # 80 = 50% transparent.
+            # OutlineColour (6th field) = &H80000000 (Black 50% alpha)
+            # BorderStyle (16th field) = 3
+            style_line = f"Style: {lang_code.upper()},{font_name},{font_size},&H00FFFFFF,&H000000FF,&H80000000,&H80000000,-1,0,0,0,100,100,0,0,3,0,1,2,10,10,{margin_v},1\n"
             f.write(style_line)
             print(f"  ✓ {lang_code.upper()}: {font_name} size {font_size} at margin {margin_v}")
         
